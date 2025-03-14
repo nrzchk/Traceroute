@@ -1,0 +1,94 @@
+using System;
+using System.Diagnostics;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
+using System.Text;
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.WriteLine("Использование: traceroute <адрес> [--resolve]");
+            return;
+        }
+
+        string target = args[0];
+        bool resolveHostnames = args.Length > 1 && args[1] == "--resolve";
+
+        Traceroute(target, 30, 3, 2000, resolveHostnames);
+    }
+
+    static void Traceroute(string host, int maxHops, int pingsPerHop, int timeout, bool resolveHostnames)
+    {
+        try
+        {
+            IPAddress destIP = Dns.GetHostEntry(host).AddressList[0];
+            Console.WriteLine($"Трассировка до {host} ({destIP}) с максимальным количеством хопов {maxHops}:");
+        }
+        catch (Exception)
+        {
+            Console.WriteLine($"Не удается разрешить адрес {host}");
+            return;
+        }
+
+        using (Ping ping = new Ping())
+        {
+            for (int ttl = 1; ttl <= maxHops; ttl++)
+            {
+                Console.Write($"{ttl,2}  ");
+
+                for (int i = 0; i < pingsPerHop; i++)
+                {
+                    PingOptions options = new PingOptions(ttl, true);
+                    byte[] buffer = Encoding.ASCII.GetBytes("test");
+                    Stopwatch stopwatch = Stopwatch.StartNew();
+
+                    try
+                    {
+                        PingReply reply = ping.Send(host, timeout, buffer, options);
+                        stopwatch.Stop();
+
+                        if (reply.Status == IPStatus.TtlExpired || reply.Status == IPStatus.Success)
+                        {
+                            string addr = reply.Address.ToString();
+                            string hostname = resolveHostnames ? ResolveHostname(addr) : addr;
+                            Console.Write($"{hostname} ({addr}) {stopwatch.ElapsedMilliseconds} ms  ");
+
+                            if (reply.Status == IPStatus.Success)
+                            {
+                                Console.WriteLine("\nТрассировка завершена.");
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            Console.Write("*  ");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Write($"Ошибка: {ex.Message} ");
+                    }
+                }
+                Console.WriteLine();
+            }
+        }
+
+        Console.WriteLine("Трассировка завершена.");
+    }
+
+    static string ResolveHostname(string ipAddress)
+    {
+        try
+        {
+            return Dns.GetHostEntry(ipAddress).HostName;
+        }
+        catch
+        {
+            return ipAddress;
+        }
+    }
+}
