@@ -11,17 +11,16 @@ class Program
     {
         if (args.Length == 0)
         {
-            Console.WriteLine("Использование: traceroute <адрес> [--resolve]");
+            Console.WriteLine("Использование: traceroute <адрес>");
             return;
         }
 
         string target = args[0];
-        bool resolveHostnames = args.Length > 1 && args[1] == "--resolve";
 
-        Traceroute(target, 30, 3, 2000, resolveHostnames);
+        Traceroute(target, 30, 3, 2000);
     }
 
-    static void Traceroute(string host, int maxHops, int pingsPerHop, int timeout, bool resolveHostnames)
+    static void Traceroute(string host, int maxHops, int pingsPerHop, int timeout)
     {
         try
         {
@@ -54,8 +53,7 @@ class Program
                         if (reply.Status == IPStatus.TtlExpired || reply.Status == IPStatus.Success)
                         {
                             string addr = reply.Address.ToString();
-                            string hostname = resolveHostnames ? ResolveHostname(addr) : addr;
-                            Console.Write($"{hostname} ({addr}) {stopwatch.ElapsedMilliseconds} ms  ");
+                            Console.Write($"{addr} {stopwatch.ElapsedMilliseconds} ms  ");
 
                             if (reply.Status == IPStatus.Success)
                             {
@@ -78,17 +76,5 @@ class Program
         }
 
         Console.WriteLine("Трассировка завершена.");
-    }
-
-    static string ResolveHostname(string ipAddress)
-    {
-        try
-        {
-            return Dns.GetHostEntry(ipAddress).HostName;
-        }
-        catch
-        {
-            return ipAddress;
-        }
     }
 }
